@@ -10,6 +10,7 @@ fn main() {
         .author("Jupp Mueller <jupp0r@gmail.com>")
         .about("Advent of code 2019")
         .subcommand(SubCommand::with_name("day1"))
+        .subcommand(SubCommand::with_name("day2"))
         .get_matches();
 
     if matches.subcommand_matches("day1").is_some() {
