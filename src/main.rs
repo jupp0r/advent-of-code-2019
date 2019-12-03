@@ -3,6 +3,7 @@ use clap::{App, SubCommand};
 
 mod day1;
 mod day2;
+mod day3;
 
 fn main() {
     let matches = App::new("advent")
@@ -11,6 +12,7 @@ fn main() {
         .about("Advent of code 2019")
         .subcommand(SubCommand::with_name("day1"))
         .subcommand(SubCommand::with_name("day2"))
+        .subcommand(SubCommand::with_name("day3"))
         .get_matches();
 
     if matches.subcommand_matches("day1").is_some() {
@@ -18,5 +20,8 @@ fn main() {
     }
     if matches.subcommand_matches("day2").is_some() {
         day2::run();
+    }
+    if matches.subcommand_matches("day3").is_some() {
+        day3::run();
     }
 }
