@@ -7,6 +7,7 @@ mod day3;
 mod day4;
 mod day5;
 mod day6;
+mod day7;
 
 fn main() {
     let matches = App::new("advent")
@@ -19,6 +20,7 @@ fn main() {
         .subcommand(SubCommand::with_name("day4"))
         .subcommand(SubCommand::with_name("day5"))
         .subcommand(SubCommand::with_name("day6"))
+        .subcommand(SubCommand::with_name("day7"))
         .get_matches();
 
     if matches.subcommand_matches("day1").is_some() {
@@ -38,5 +40,8 @@ fn main() {
     }
     if matches.subcommand_matches("day6").is_some() {
         day6::run();
+    }
+    if matches.subcommand_matches("day7").is_some() {
+        day7::run();
     }
 }

@@ -1,35 +1,85 @@
+use std::collections::VecDeque;
 use std::io::{stdin, Error as IoError, ErrorKind, Read};
 
+use permutator::Permutation;
+
 pub fn run() {
-    let mut program = read_memory();
-    run_computer(&mut program);
+    let program = read_memory();
+    let max = [5, 6, 7, 8, 9]
+        .permutation()
+        .map(|perm| {
+            let mut feed_forward = 0;
+            let mut mem = vec![];
+            let mut program_counters = vec![];
+            let mut inputs = vec![];
+            for i in 0..5 {
+                mem.push(program[0].clone());
+                program_counters.push(0);
+                inputs.push(VecDeque::from(vec![perm[i]]));
+            }
+            loop {
+                for i in 0..5 {
+                    inputs[i].push_back(feed_forward);
+                    match run_computer(&mut program_counters[i], &mut mem[i], &mut inputs[i])
+                        .expect("program error")
+                    {
+                        ProgramResult::Output(output) => feed_forward = output,
+                        ProgramResult::Finished => {
+                            if i == 4 {
+                                return feed_forward;
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        .max()
+        .unwrap();
+    println!("{}", max);
 }
 
-pub fn read_memory() -> Vec<i64> {
+pub fn read_memory() -> Vec<Vec<i64>> {
     let mut s = Vec::new();
     stdin()
         .read_to_end(&mut s)
         .expect("did not enter a correct string");
 
     let input_string = std::str::from_utf8(&s).expect("invalid utf8");
-    let memory_values: Vec<i64> = input_string
-        .split(",")
-        .filter_map(|value| value.parse::<i64>().ok())
+    let memory_values: Vec<Vec<i64>> = input_string
+        .lines()
+        .map(|line| {
+            line.split(",")
+                .filter_map(|value| value.parse::<i64>().ok())
+                .collect()
+        })
         .collect();
     memory_values
 }
 
-pub fn run_computer(mut memory: &mut Vec<i64>) {
-    let mut program_counter = 0;
+pub fn run_computer(
+    mut program_counter: &mut usize,
+    mut memory: &mut Vec<i64>,
+    mut input: &mut VecDeque<i64>,
+) -> Result<ProgramResult, IoError> {
     loop {
-        match perform_operation(&mut program_counter, &mut memory) {
-            Ok(()) => (),
-            Err(e) => {
-                println!("{:?}", e);
-                break;
-            }
+        match perform_operation(&mut program_counter, &mut memory, &mut input) {
+            Ok(OperationResult::Output(value)) => return Ok(ProgramResult::Output(value)),
+            Ok(OperationResult::Finished) => return Ok(ProgramResult::Finished),
+            Ok(OperationResult::Continue) => continue,
+            Err(e) => return Err(e),
         }
     }
+}
+
+enum OperationResult {
+    Output(i64),
+    Continue,
+    Finished,
+}
+
+pub enum ProgramResult {
+    Output(i64),
+    Finished,
 }
 
 fn load(address: usize, memory: &Vec<i64>, mode: AddressingMode) -> Result<i64, IoError> {
@@ -50,7 +100,11 @@ fn load(address: usize, memory: &Vec<i64>, mode: AddressingMode) -> Result<i64, 
     }
 }
 
-fn perform_operation(program_counter: &mut usize, memory: &mut Vec<i64>) -> Result<(), IoError> {
+fn perform_operation(
+    program_counter: &mut usize,
+    memory: &mut Vec<i64>,
+    input: &mut VecDeque<i64>,
+) -> Result<OperationResult, IoError> {
     let operation = parse_opcode(
         memory
             .get(*program_counter)
@@ -67,10 +121,6 @@ fn perform_operation(program_counter: &mut usize, memory: &mut Vec<i64>) -> Resu
             let destination =
                 load(*program_counter + 3, &memory, AddressingMode::Immediate)? as usize;
             memory[destination] = summand1 + summand2;
-            // println!(
-            //     "{:?} {} + {} -> [{}]",
-            //     operation, summand1, summand2, destination
-            // );
             *program_counter = *program_counter + 4;
         }
         Some(Operation::Multiplication {
@@ -82,10 +132,6 @@ fn perform_operation(program_counter: &mut usize, memory: &mut Vec<i64>) -> Resu
             let destination =
                 load(*program_counter + 3, &memory, AddressingMode::Immediate)? as usize;
             memory[destination] = factor1 * factor2;
-            // println!(
-            //     "{:?} {} + {} -> [{}]",
-            //     operation, factor, summand2, destination
-            // );
             *program_counter = *program_counter + 4;
         }
         Some(Operation::JumpIfTrue {
@@ -145,23 +191,19 @@ fn perform_operation(program_counter: &mut usize, memory: &mut Vec<i64>) -> Resu
         Some(Operation::Input) => {
             let pos =
                 load(*program_counter + 1, &memory, AddressingMode::Immediate)?.clone() as usize;
-            let mut arg_string = String::new();
-            stdin().read_line(&mut arg_string)?;
-            // let arg = arg_string
-            //     .parse::<i64>()
-            //     .map_err(|e| IoError::new(ErrorKind::Other, e.description()))?;
-            // change to 1 for part 1 of day 5
-            let arg = 5;
+            let arg = input
+                .pop_front()
+                .ok_or(IoError::new(ErrorKind::Other, "insufficient inputs"))?;
             memory[pos] = arg;
             *program_counter = *program_counter + 2;
         }
         Some(Operation::Print) => {
             let pos =
                 load(*program_counter + 1, &memory, AddressingMode::Immediate)?.clone() as usize;
-            println!("{}", memory[pos]);
             *program_counter = *program_counter + 2;
+            return Ok(OperationResult::Output(memory[pos]));
         }
-        Some(Operation::Exit) => std::process::exit(0),
+        Some(Operation::Exit) => return Ok(OperationResult::Finished),
         _ => {
             return Err(IoError::new(
                 ErrorKind::Other,
@@ -173,7 +215,7 @@ fn perform_operation(program_counter: &mut usize, memory: &mut Vec<i64>) -> Resu
             ))
         }
     };
-    Ok(())
+    Ok(OperationResult::Continue)
 }
 
 fn parse_opcode(opcode: i64) -> Option<Operation> {
