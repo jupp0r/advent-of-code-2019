@@ -1,4 +1,5 @@
 extern crate clap;
+extern crate termion;
 use clap::{App, SubCommand};
 
 mod day1;
@@ -8,6 +9,7 @@ mod day4;
 mod day5;
 mod day6;
 mod day7;
+mod day8;
 
 fn main() {
     let matches = App::new("advent")
@@ -21,6 +23,7 @@ fn main() {
         .subcommand(SubCommand::with_name("day5"))
         .subcommand(SubCommand::with_name("day6"))
         .subcommand(SubCommand::with_name("day7"))
+        .subcommand(SubCommand::with_name("day8"))
         .get_matches();
 
     if matches.subcommand_matches("day1").is_some() {
@@ -43,5 +46,8 @@ fn main() {
     }
     if matches.subcommand_matches("day7").is_some() {
         day7::run();
+    }
+    if matches.subcommand_matches("day8").is_some() {
+        day8::run();
     }
 }
